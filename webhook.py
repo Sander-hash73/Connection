@@ -21,17 +21,24 @@ logging.basicConfig(
 )
 
 # Haal access token op
+# Haal access token op
 def get_deribit_access_token():
     url = "https://www.deribit.com/api/v2/public/auth"
-    params = {
+    data = {
         "client_id": DERIBIT_CLIENT_ID,
         "client_secret": DERIBIT_CLIENT_SECRET,
         "grant_type": "client_credentials"
     }
-    response = requests.post(url, params=params)
+    
+    # Gebruik json in plaats van params voor de body
+    response = requests.post(url, json=data)
+    
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
+        return None
+    
     return response.json().get("access_token")
+
 
 # Webhook endpoint
 @app.route("/webhook", methods=["POST"])
