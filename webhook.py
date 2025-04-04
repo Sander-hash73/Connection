@@ -47,10 +47,7 @@ def webhook():
     # Log het bericht
     logging.info(f"Ontvangen bericht: {message}")
 
-    # Verwerk message verder (bijv. extract position size)
-    return {"message": "Ontvangen", "status": "success"}
-
-
+    # Extract position size
     try:
         position_size = float(data.get("position_size", 0))
     except (ValueError, TypeError):
@@ -97,10 +94,11 @@ def webhook():
         response = requests.post(sell_url, json=sell_params, headers=headers)
         logging.info("Sell response: %s", response.json())
 
-    return {"status": "ok"}
+    return {"message": "Ontvangen", "status": "success"}
 
 if __name__ == "__main__":
     app.run(port=5000)
+
 
 
 
