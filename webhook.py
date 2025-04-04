@@ -36,11 +36,17 @@ def get_deribit_access_token():
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    # Zorg ervoor dat data altijd een waarde heeft
+    data = None
+    message = ""
+
     if request.content_type == 'application/json':
         data = request.get_json()
         message = data.get("message", "")
     elif request.content_type == 'text/plain':
         message = request.data.decode('utf-8')
+        # Aangezien de data in tekstformaat is, kunnen we een fictief 'data' object aanmaken
+        data = {"message": message}
     else:
         return {"message": "Unsupported content type", "status": "error"}, 415
 
@@ -98,8 +104,3 @@ def webhook():
 
 if __name__ == "__main__":
     app.run(port=5000)
-
-
-
-
-
