@@ -31,7 +31,8 @@ def get_deribit_access_token():
     }
     
     # Gebruik json in plaats van params voor de body
-    response = requests.post(url, json=data)
+    response = requests.post(url, data=params)
+
     
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
