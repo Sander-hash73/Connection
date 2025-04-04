@@ -28,11 +28,22 @@ def get_deribit_access_token():
         "grant_type": "client_credentials"
     }
     response = requests.post(url, data=params)
+
+    # Log de response voor debugging
+    logging.info("Response van Deribit API: %s", response.text)
+
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
         return None
-    return response.json().get("result", {}).get("access_token")
-
+    
+    # Log de JSON response om te zien wat er wordt geretourneerd
+    response_data = response.json()
+    access_token = response_data.get("result", {}).get("access_token")
+    
+    # Log het access token om te controleren
+    logging.info("Access token ontvangen: %s", access_token)
+    
+    return access_token
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
