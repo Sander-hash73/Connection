@@ -13,7 +13,10 @@ TICKER = "BTC-PERPETUAL"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.FileHandler("webhook.log"), logging.StreamHandler()]
+    handlers=[
+        logging.FileHandler("webhook.log"),
+        logging.StreamHandler()
+    ]
 )
 
 # Haal access token op
@@ -28,14 +31,11 @@ def get_deribit_access_token():
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
         return None
-    logging.info("Access token ontvangen: %s", response.json())
     return response.json().get("result", {}).get("access_token")
-
 
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # Ontvang het bericht van TradingView
     if request.content_type == 'application/json':
         data = request.get_json()
         message = data.get("message", "")
@@ -47,10 +47,12 @@ def webhook():
     # Log het bericht
     logging.info(f"Ontvangen bericht: {message}")
 
-    # Probeer de position_size te extraheren
+    # Verwerk message verder (bijv. extract position size)
+    return {"message": "Ontvangen", "status": "success"}
+
     try:
-        position_size = float(message.split("New strategy position is ")[1])
-    except (ValueError, IndexError):
+        position_size = float(data.get("position_size", 0))
+    except (ValueError, TypeError):
         logging.error("Ongeldige waarde voor position_size")
         return {"status": "error", "message": "Invalid position_size"}, 400
 
