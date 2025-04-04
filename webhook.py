@@ -1,6 +1,7 @@
 from flask import Flask, request
 import requests
 import logging
+import re
 
 app = Flask(__name__)
 
@@ -28,48 +29,37 @@ def get_deribit_access_token():
         "grant_type": "client_credentials"
     }
     response = requests.post(url, data=params)
-
-    # Log de response voor debugging
-    logging.info("Response van Deribit API: %s", response.text)
-
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
         return None
-    
-    # Log de JSON response om te zien wat er wordt geretourneerd
-    response_data = response.json()
-    access_token = response_data.get("result", {}).get("access_token")
-    
-    # Log het access token om te controleren
-    logging.info("Access token ontvangen: %s", access_token)
-    
-    return access_token
+    return response.json().get("result", {}).get("access_token")
+
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    # Zorg ervoor dat data altijd een waarde heeft
-    data = None
-    message = ""
-
     if request.content_type == 'application/json':
         data = request.get_json()
         message = data.get("message", "")
     elif request.content_type == 'text/plain':
         message = request.data.decode('utf-8')
-        # Aangezien de data in tekstformaat is, kunnen we een fictief 'data' object aanmaken
-        data = {"message": message}
     else:
         return {"message": "Unsupported content type", "status": "error"}, 415
 
     # Log het bericht
     logging.info(f"Ontvangen bericht: {message}")
 
-    # Extract position size
-    try:
-        position_size = float(data.get("position_size", 0))
-    except (ValueError, TypeError):
-        logging.error("Ongeldige waarde voor position_size")
-        return {"status": "error", "message": "Invalid position_size"}, 400
+    # Probeer position_size te extraheren uit de tekst
+    match = re.search(r"New strategy position is (-?\d+(\.\d+)?)", message)
+    if match:
+        try:
+            position_size = float(match.group(1))
+            logging.info(f"Gevonden position_size: {position_size}")
+        except ValueError:
+            logging.error("Ongeldige waarde voor position_size")
+            return {"status": "error", "message": "Invalid position_size"}, 400
+    else:
+        logging.error("Geen position_size gevonden in bericht")
+        return {"status": "error", "message": "Geen position_size gevonden"}, 400
 
     # Haal toegangstoken op
     access_token = get_deribit_access_token()
@@ -111,7 +101,8 @@ def webhook():
         response = requests.post(sell_url, json=sell_params, headers=headers)
         logging.info("Sell response: %s", response.json())
 
-    return {"message": "Ontvangen", "status": "success"}
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     app.run(port=5000)
+
