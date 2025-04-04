@@ -19,11 +19,6 @@ logging.basicConfig(
     ]
 )
 
-# Health check route
-@app.route("/")
-def home():
-    return "Webhook server is running.", 200
-
 # Haal access token op
 def get_deribit_access_token():
     url = "https://www.deribit.com/api/v2/public/auth"
@@ -32,10 +27,11 @@ def get_deribit_access_token():
         "client_secret": DERIBIT_CLIENT_SECRET,
         "grant_type": "client_credentials"
     }
-    response = requests.post(url, data=params)  # gebruik data ipv params!
+    response = requests.post(url, data=params)
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
-    return response.json().get("access_token")
+        return None
+    return response.json().get("result", {}).get("access_token")
 
 # Webhook endpoint
 @app.route("/webhook", methods=["POST"])
@@ -49,6 +45,7 @@ def webhook():
         logging.error("Ongeldige waarde voor position_size")
         return {"status": "error", "message": "Invalid position_size"}, 400
 
+    # Haal toegangstoken op
     access_token = get_deribit_access_token()
     if not access_token:
         logging.error("Geen access token ontvangen van Deribit.")
@@ -56,6 +53,7 @@ def webhook():
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
+    # Sluit positie
     if position_size == 0:
         logging.info("🛑 Sluit positie")
         close_url = "https://www.deribit.com/api/v2/private/close_position"
@@ -63,6 +61,7 @@ def webhook():
         response = requests.post(close_url, json=close_params, headers=headers)
         logging.info("Close response: %s", response.json())
 
+    # Open LONG positie
     elif position_size > 0:
         logging.info(f"🟢 Open LONG voor {position_size}")
         buy_url = "https://www.deribit.com/api/v2/private/buy"
@@ -74,6 +73,7 @@ def webhook():
         response = requests.post(buy_url, json=buy_params, headers=headers)
         logging.info("Buy response: %s", response.json())
 
+    # Open SHORT positie
     else:
         logging.info(f"🔴 Open SHORT voor {abs(position_size)}")
         sell_url = "https://www.deribit.com/api/v2/private/sell"
@@ -89,4 +89,5 @@ def webhook():
 
 if __name__ == "__main__":
     app.run(port=5000)
+
 
