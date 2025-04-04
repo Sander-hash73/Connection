@@ -1,7 +1,7 @@
+import re
 from flask import Flask, request
 import requests
 import logging
-import re
 
 app = Flask(__name__)
 
@@ -39,56 +39,49 @@ def webhook():
     data = request.json
     logging.info("Ontvangen data: %s", data)
 
-    try:
-        # Verkrijg de signaaltekst
-        signal_text = data.get("message", "")  # Aangepast naar 'message' als je geen 'signal' hebt
-        logging.info(f"Verwerkte signaaltekst: {signal_text}")
-        
-        # Gebruik een reguliere expressie om de waarde van 'position_size' te extraheren
-        match = re.search(r"@ (\d+\.\d+)", signal_text)
-        if match:
-            position_size = float(match.group(1))  # Haal de waarde van @ en converteer naar float
-        else:
-            position_size = 0  # Standaardwaarde als we geen match vinden
-    except (ValueError, TypeError):
-        logging.error("Ongeldige waarde voor position_size")
-        return {"status": "error", "message": "Invalid position_size"}, 400
+    message = data.get("message", "")  # Dit is het bericht van TradingView
 
-    ticker = data.get("ticker", "BTC-PERPETUAL")
+    # Parsing van de boodschap om de 'New strategy position' te extraheren
+    match = re.search(r"New strategy position is (-?\d+)", message)  # Zoeken naar de positie in de tekst
+    if match:
+        position_size = float(match.group(1))  # De waarde van de new strategy position
+    else:
+        logging.error("Fout bij het parsen van het bericht. 'New strategy position' niet gevonden.")
+        return {"status": "error", "message": "Invalid message format"}, 400
+
+    logging.info(f"Positie: {position_size}, Ticker: {TICKER}")
+
+    # Verkrijg toegangstoken van Deribit
     access_token = get_deribit_access_token()
-
     if not access_token:
         logging.error("Geen access token ontvangen van Deribit.")
         return {"status": "error", "message": "Geen access token"}, 500
 
     headers = {"Authorization": f"Bearer {access_token}"}
 
-    # Positie sluiten (position_size == 0)
     if position_size == 0:
         logging.info("🛑 Sluit positie")
         close_url = "https://www.deribit.com/api/v2/private/close_position"
-        close_params = {"instrument_name": ticker, "type": "market"}
+        close_params = {"instrument_name": TICKER, "type": "market"}
         response = requests.post(close_url, json=close_params, headers=headers)
         logging.info("Close response: %s", response.json())
 
-    # Long positie openen (position_size > 0)
     elif position_size > 0:
         logging.info(f"🟢 Open LONG voor {position_size}")
         buy_url = "https://www.deribit.com/api/v2/private/buy"
         buy_params = {
-            "instrument_name": ticker,
+            "instrument_name": TICKER,
             "amount": position_size,
             "type": "market"
         }
         response = requests.post(buy_url, json=buy_params, headers=headers)
         logging.info("Buy response: %s", response.json())
 
-    # Short positie openen (position_size < 0)
-    elif position_size < 0:
+    else:
         logging.info(f"🔴 Open SHORT voor {abs(position_size)}")
         sell_url = "https://www.deribit.com/api/v2/private/sell"
         sell_params = {
-            "instrument_name": ticker,
+            "instrument_name": TICKER,
             "amount": abs(position_size),
             "type": "market"
         }
