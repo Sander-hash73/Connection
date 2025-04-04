@@ -5,8 +5,8 @@ import logging
 app = Flask(__name__)
 
 # Deribit API credentials
-DERIBIT_CLIENT_ID = "GNZXWF48"
-DERIBIT_CLIENT_SECRET = "CVvAjiqbo0TrqVVHBIZ3IIBcPVJEJtfScqZr3KOfYQE"
+DERIBIT_CLIENT_ID = "zDMGWs4t"
+DERIBIT_CLIENT_SECRET = "gA2H5m8hIfwS-cboRsDLhdqGBTalmtsfgvlYOgWAajo"
 TICKER = "BTC-PERPETUAL"
 
 # Configureer logging
