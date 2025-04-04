@@ -1,7 +1,6 @@
 from flask import Flask, request
 import requests
 import logging
-import re
 
 app = Flask(__name__)
 
@@ -14,10 +13,7 @@ TICKER = "BTC-PERPETUAL"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler("webhook.log"),
-        logging.StreamHandler()
-    ]
+    handlers=[logging.FileHandler("webhook.log"), logging.StreamHandler()]
 )
 
 # Haal access token op
@@ -37,6 +33,7 @@ def get_deribit_access_token():
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
 def webhook():
+    # Ontvang het bericht van TradingView
     if request.content_type == 'application/json':
         data = request.get_json()
         message = data.get("message", "")
@@ -48,18 +45,12 @@ def webhook():
     # Log het bericht
     logging.info(f"Ontvangen bericht: {message}")
 
-    # Probeer position_size te extraheren uit de tekst
-    match = re.search(r"New strategy position is (-?\d+(\.\d+)?)", message)
-    if match:
-        try:
-            position_size = float(match.group(1))
-            logging.info(f"Gevonden position_size: {position_size}")
-        except ValueError:
-            logging.error("Ongeldige waarde voor position_size")
-            return {"status": "error", "message": "Invalid position_size"}, 400
-    else:
-        logging.error("Geen position_size gevonden in bericht")
-        return {"status": "error", "message": "Geen position_size gevonden"}, 400
+    # Probeer de position_size te extraheren
+    try:
+        position_size = float(message.split("New strategy position is ")[1])
+    except (ValueError, IndexError):
+        logging.error("Ongeldige waarde voor position_size")
+        return {"status": "error", "message": "Invalid position_size"}, 400
 
     # Haal toegangstoken op
     access_token = get_deribit_access_token()
@@ -105,4 +96,5 @@ def webhook():
 
 if __name__ == "__main__":
     app.run(port=5000)
+
 
