@@ -1,4 +1,3 @@
-import re
 from flask import Flask, request
 import requests
 import logging
@@ -20,26 +19,23 @@ logging.basicConfig(
     ]
 )
 
-# Haal access token op
+# Health check route
+@app.route("/")
+def home():
+    return "Webhook server is running.", 200
+
 # Haal access token op
 def get_deribit_access_token():
     url = "https://www.deribit.com/api/v2/public/auth"
-    data = {
+    params = {
         "client_id": DERIBIT_CLIENT_ID,
         "client_secret": DERIBIT_CLIENT_SECRET,
         "grant_type": "client_credentials"
     }
-    
-    # Gebruik json in plaats van params voor de body
-    response = requests.post(url, data=params)
-
-    
+    response = requests.post(url, data=params)  # gebruik data ipv params!
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
-        return None
-    
     return response.json().get("access_token")
-
 
 # Webhook endpoint
 @app.route("/webhook", methods=["POST"])
@@ -47,19 +43,12 @@ def webhook():
     data = request.json
     logging.info("Ontvangen data: %s", data)
 
-    message = data.get("message", "")  # Dit is het bericht van TradingView
+    try:
+        position_size = float(data.get("position_size", 0))
+    except (ValueError, TypeError):
+        logging.error("Ongeldige waarde voor position_size")
+        return {"status": "error", "message": "Invalid position_size"}, 400
 
-    # Parsing van de boodschap om de 'New strategy position' te extraheren
-    match = re.search(r"New strategy position is (-?\d+)", message)  # Zoeken naar de positie in de tekst
-    if match:
-        position_size = float(match.group(1))  # De waarde van de new strategy position
-    else:
-        logging.error("Fout bij het parsen van het bericht. 'New strategy position' niet gevonden.")
-        return {"status": "error", "message": "Invalid message format"}, 400
-
-    logging.info(f"Positie: {position_size}, Ticker: {TICKER}")
-
-    # Verkrijg toegangstoken van Deribit
     access_token = get_deribit_access_token()
     if not access_token:
         logging.error("Geen access token ontvangen van Deribit.")
@@ -100,3 +89,4 @@ def webhook():
 
 if __name__ == "__main__":
     app.run(port=5000)
+
