@@ -34,10 +34,22 @@ def get_deribit_access_token():
     return response.json().get("result", {}).get("access_token")
 
 # Webhook endpoint
-@app.route("/webhook", methods=["POST"])
+@app.route('/webhook', methods=['POST'])
 def webhook():
-    data = request.json
-    logging.info("Ontvangen data: %s", data)
+    if request.content_type == 'application/json':
+        data = request.get_json()
+        message = data.get("message", "")
+    elif request.content_type == 'text/plain':
+        message = request.data.decode('utf-8')
+    else:
+        return {"message": "Unsupported content type", "status": "error"}, 415
+
+    # Log het bericht
+    logging.info(f"Ontvangen bericht: {message}")
+
+    # Verwerk message verder (bijv. extract position size)
+    return {"message": "Ontvangen", "status": "success"}
+
 
     try:
         position_size = float(data.get("position_size", 0))
