@@ -28,7 +28,9 @@ def get_deribit_access_token():
     if response.status_code != 200:
         logging.error("Fout bij ophalen access token: %s", response.text)
         return None
+    logging.info("Access token ontvangen: %s", response.json())
     return response.json().get("result", {}).get("access_token")
+
 
 # Webhook endpoint
 @app.route('/webhook', methods=['POST'])
